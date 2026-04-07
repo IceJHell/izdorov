@@ -110,11 +110,15 @@ async function sendReminder() {
     `Сегодня: ✅ ${data.today.done} | ❌ ${data.today.missed}`;
 
   const keyboard = {
-    inline_keyboard: [[
-      { text: '✅ Сделал!', callback_data: 'done' },
-      { text: '❌ Не сделал', callback_data: 'missed' },
-      { text: '⏸ Пауза', callback_data: 'pause' },
-    ]]
+    inline_keyboard: [
+      [
+        { text: '✅ Сделал!', callback_data: 'done' },
+        { text: '❌ Пропустил', callback_data: 'missed' },
+      ],
+      [
+        { text: '⏸ Пауза на сегодня', callback_data: 'pause' },
+      ]
+    ]
   };
 
   try {
