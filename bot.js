@@ -300,6 +300,54 @@ bot.onText(/\/start/, async (msg) => {
   await bot.sendMessage(CHAT_ID, text, { parse_mode: 'Markdown' });
 });
 
+// ─── TEXT MESSAGE HANDLER ────────────────────────────────────────────────────
+// Ловим свободный текст — "сделал", "готово", "выполнил" и т.п.
+const DONE_WORDS = ['сделал', 'готово', 'выполнил', 'done', 'ок', 'ok', 'выполнено', 'сделано', 'готов', '✅', 'да'];
+const MISS_WORDS = ['не сделал', 'пропустил', 'не успел', 'пропуск', 'miss', 'нет', 'не смог'];
+
+bot.on('message', async (msg) => {
+  if (String(msg.chat.id) !== String(CHAT_ID)) return;
+  if (!msg.text) return; // голосовые — пропускаем (нет транскрипции)
+  if (msg.text.startsWith('/')) return; // команды обрабатываются выше
+
+  const text = msg.text.toLowerCase().trim();
+
+  const isDone = DONE_WORDS.some(w => text.includes(w));
+  const isMiss = MISS_WORDS.some(w => text.includes(w));
+
+  if (!isDone && !isMiss) {
+    // Непонятный текст — подсказка
+    await bot.sendMessage(CHAT_ID,
+      `Не понял 🤔\n\nНапиши *сделал* или *не сделал*, или нажми кнопку в напоминании.\nКоманды: /today /stats /pause`,
+      { parse_mode: 'Markdown' }
+    );
+    return;
+  }
+
+  let data = loadData();
+  data = ensureToday(data);
+
+  if (isDone) {
+    data.today.done += 1;
+    data.inRowStreak += 1;
+    const fireEmoji = data.inRowStreak >= 5 ? '🔥🔥🔥' : data.inRowStreak >= 3 ? '🔥🔥' : '🔥';
+    const reply =
+      `✅ *Засчитал!*\n\n` +
+      `${fireEmoji} Стрик: *${data.inRowStreak} подряд*\n` +
+      `Сегодня выполнено: *${data.today.done}*`;
+    await bot.sendMessage(CHAT_ID, reply, { parse_mode: 'Markdown' });
+  } else {
+    data.today.missed += 1;
+    data.inRowStreak = 0;
+    const reply =
+      `❌ Записал как пропуск. Стрик сброшен.\n` +
+      `Сегодня: ✅ ${data.today.done} | ❌ ${data.today.missed}\n\nВ следующий раз — обязательно! 💪`;
+    await bot.sendMessage(CHAT_ID, reply, { parse_mode: 'Markdown' });
+  }
+
+  saveData(data);
+});
+
 // ─── CRON SCHEDULE (Moscow = UTC+3) ─────────────────────────────────────────
 // node-cron использует серверное время — Railway работает в UTC
 // Поэтому 9:00 МСК = 6:00 UTC, 18:00 МСК = 15:00 UTC, 21:00 МСК = 18:00 UTC
